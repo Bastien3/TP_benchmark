@@ -12,10 +12,9 @@ int main (int argc, char *argv[]) {
 	struct timeval temps_debut, temps_fin;
 	suseconds_t temps_ecoule;
 	int somme_temps = 0;
-	float *tab;
+	float *tab, moyenne;
 	int tube[2];
-	
-	
+	pid_t pid_fils;
 
 	if (argc != 4) {
 		printf("%s : <nb  processus> <commande> <nb exec>.\n", argv[0]);
@@ -29,6 +28,7 @@ int main (int argc, char *argv[]) {
 
 	for (i = 0 ; i < n ; i++) {
 		/* Lancement des n processus fils */
+		pipe(tube);
 		switch(fork()) {
 			case -1 : 
 				perror("Problème dans le processus fils");
@@ -52,22 +52,28 @@ int main (int argc, char *argv[]) {
 							temps_ecoule = temps_fin.tv_usec - temps_debut.tv_usec;
 							somme_temps += (int)temps_ecoule;
 							
-							//printf("Temps écoulé : %d microsecondes\n", (int)temps_ecoule);
+							/*printf("Temps écoulé : %d microsecondes\n", (int)temps_ecoule);*/
 					}
 				}
-				//printf("Moyenne du temps écoulé : %f", (float)somme_temps / k);
-				tab[i] = (float)somme_temps / k;
-				for (j = 0 ; j < n ; j++)
-					printf("%f ", tab[j]);
-				printf("\n");
+				moyenne = (float)somme_temps / k;
+				printf("%f\n", moyenne);
+				printf("Tube du processus %d : lecture %d écriture %d\n", getpid(), tube[0], tube[1]);
+				close(tube[0]);
+				write(tube[1], &moyenne, sizeof(float));
+				close(tube[1]);
 				exit(0);
 			default : 
-				while(wait(&cr) != -1);
-				tab[i] = (float)somme_temps / k;
+				while((pid_fils = wait(&cr)) != -1) {
+					printf("pid fils : %d\n", (int)pid_fils);
+					printf("Tube du processus %d : lecture %d écriture %d\n", getpid(), tube[0], tube[1]);
+					close(tube[1]);
+					read(tube[0], &moyenne, sizeof(float));
+					printf("%f\n", moyenne);
+				}
 		}
 	}
-	for (j = 0 ; j < n ; j++)
-		printf("%f ", tab[j]);
+	/*for (j = 0 ; j < n ; j++)
+		printf("%f ", tab[j]);*/
 	printf("\n");
 	free(tab);
 	return 0;
